@@ -103,7 +103,7 @@ def _eig_cusolver(
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Eigendecomposition using `jax.lax.linalg.eig` with `cusolver` backend."""
     if not _JAX_HAS_CUSOLVER:
-        raise ValueError("`CUDA` backend is not available.")
+        raise ValueError("`CUSOLVER` backend is not available.")
     if force_x64:
         matrix_dtype = jnp.promote_types(matrix.dtype, jnp.float64)
     else:
