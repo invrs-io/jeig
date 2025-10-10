@@ -25,7 +25,9 @@ if torch.cuda.has_magma:
         os.path.dirname(torch.__file__), "lib", "libtorch_cuda_linalg.so"
     )
 
+# Identify whether MAGMA and CUSOLVER backends are available.
 _JAX_HAS_MAGMA = torch.cuda.has_magma
+_JAX_HAS_CUSOLVER = hasattr(jax.lax.linalg, "EigImplementation")
 
 callback = functools.partial(jax.pure_callback, vmap_method="expand_dims")
 callback_sequential = functools.partial(jax.pure_callback, vmap_method="sequential")
@@ -36,7 +38,8 @@ NDArray = onp.ndarray[Any, Any]
 
 @enum.unique
 class EigBackend(enum.Enum):
-    JAX = "jax"
+    CUSOLVER = "cusolver"
+    LAPACK = "lapack"
     MAGMA = "magma"
     NUMPY = "numpy"
     SCIPY = "scipy"
@@ -46,7 +49,8 @@ class EigBackend(enum.Enum):
     def from_string(cls, backend: str) -> "EigBackend":
         """Returns the specified backend."""
         return {
-            cls.JAX.value: cls.JAX,
+            cls.CUSOLVER.value: cls.CUSOLVER,
+            cls.LAPACK.value: cls.LAPACK,
             cls.MAGMA.value: cls.MAGMA,
             cls.NUMPY.value: cls.NUMPY,
             cls.SCIPY.value: cls.SCIPY,
@@ -94,23 +98,48 @@ def eig(
     return EIG_FNS[backend](matrix, force_x64)
 
 
-def _eig_jax(matrix: jnp.ndarray, force_x64: bool) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Eigendecomposition using `jax.numpy.linalg.eig`."""
+def _eig_cusolver(
+    matrix: jnp.ndarray, force_x64: bool
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """Eigendecomposition using `jax.lax.linalg.eig` with `cusolver` backend."""
+    if not _JAX_HAS_CUSOLVER:
+        raise ValueError("`CUDA` backend is not available.")
     if force_x64:
         matrix_dtype = jnp.promote_types(matrix.dtype, jnp.float64)
     else:
         matrix_dtype = matrix.dtype
     output_dtype = jnp.promote_types(matrix, jnp.complex64)
+
     eigval, eigvec = jax.lax.linalg.eig(
         matrix.astype(matrix_dtype),
         compute_left_eigenvectors=False,
-        use_magma=False,
+        implementation="cusolver",  # type: ignore[call-arg]
     )
     return eigval.astype(output_dtype), eigvec.astype(output_dtype)
 
 
+def _eig_lapack(
+    matrix: jnp.ndarray, force_x64: bool
+) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    """Eigendecomposition using `jax.lax.linalg.eig` with `lapack` backend."""
+    if force_x64:
+        matrix_dtype = jnp.promote_types(matrix.dtype, jnp.float64)
+    else:
+        matrix_dtype = matrix.dtype
+    output_dtype = jnp.promote_types(matrix, jnp.complex64)
+
+    eig_fn = functools.partial(jax.lax.linalg.eig, compute_left_eigenvectors=False)
+    if _JAX_HAS_CUSOLVER:
+        eig_fn = functools.partial(eig_fn, implementation="lapack")
+    else:
+        eig_fn = functools.partial(eig_fn, use_magma=False)
+
+    eigval, eigvec = eig_fn(matrix.astype(matrix_dtype))
+    return eigval.astype(output_dtype), eigvec.astype(output_dtype)
+
+
 def _eig_magma(matrix: jnp.ndarray, force_x64: bool) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Eigendecomposition using `jax.numpy.linalg.eig`."""
+    """Eigendecomposition using `jax.lax.linalg.eig` with `magma` backend."""
     if not _JAX_HAS_MAGMA:
         raise ValueError(
             "`MAGMA` backend is not available; `torch.cuda.has_magma` is `False`."
@@ -120,11 +149,14 @@ def _eig_magma(matrix: jnp.ndarray, force_x64: bool) -> Tuple[jnp.ndarray, jnp.n
     else:
         matrix_dtype = matrix.dtype
     output_dtype = jnp.promote_types(matrix, jnp.complex64)
-    eigval, eigvec = jax.lax.linalg.eig(
-        matrix.astype(matrix_dtype),
-        compute_left_eigenvectors=False,
-        use_magma=True,
-    )
+
+    eig_fn = functools.partial(jax.lax.linalg.eig, compute_left_eigenvectors=False)
+    if _JAX_HAS_CUSOLVER:
+        eig_fn = functools.partial(eig_fn, implementation="magma")
+    else:
+        eig_fn = functools.partial(eig_fn, use_magma=True)
+
+    eigval, eigvec = eig_fn(matrix.astype(matrix_dtype))
     return eigval.astype(output_dtype), eigvec.astype(output_dtype)
 
 
@@ -185,7 +217,7 @@ def _eig_scipy(matrix: jnp.ndarray, force_x64: bool) -> Tuple[jnp.ndarray, jnp.n
 
 
 def _eig_torch(matrix: jnp.ndarray, force_x64: bool) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    """Eigendecomposition using `torc.linalg.eig`."""
+    """Eigendecomposition using `torch.linalg.eig`."""
     dtype = jnp.promote_types(matrix.dtype, jnp.complex64)
 
     def _eig_fn(matrix: jnp.ndarray) -> Tuple[NDArray, NDArray]:
@@ -228,7 +260,8 @@ def _eig_torch_parallelized(x: torch.Tensor) -> List[Tuple[torch.Tensor, torch.T
 
 
 EIG_FNS = {
-    EigBackend.JAX: _eig_jax,
+    EigBackend.CUSOLVER: _eig_cusolver,
+    EigBackend.LAPACK: _eig_lapack,
     EigBackend.MAGMA: _eig_magma,
     EigBackend.NUMPY: _eig_numpy,
     EigBackend.SCIPY: _eig_scipy,

@@ -1,10 +1,10 @@
 # jeig - Eigendecompositions wrapped for jax
-![Continuous integration](https://github.com/mfschubert/jeig/actions/workflows/build-ci.yml/badge.svg)
-![PyPI version](https://img.shields.io/pypi/v/jeig)
+[![Continuous integration](https://github.com/mfschubert/jeig/actions/workflows/build-ci.yml/badge.svg)](https://github.com/mfschubert/jeig/actions)
+[![PyPI version](https://img.shields.io/pypi/v/jeig)](https://pypi.org/project/jeig/)
 
 ## Overview
 
-This package wraps eigendecompositions as provided by jax, magma, numpy, scipy, and torch for use with jax. Depending upon your system and your versions of these packages, you may observe significant speed differences. The following were obtained using jax 0.4.37 on a system with 28-core Intel Xeon w7-3465X and NVIDIA RTX4090.
+This package wraps eigendecompositions as provided by jax, cusolver, magma, numpy, scipy, and torch for use with jax. Depending upon your system and your versions of these packages, you may observe significant speed differences. The following were obtained using jax 0.4.37 on a system with 28-core Intel Xeon w7-3465X and NVIDIA RTX4090.
 
 ![Speed comparison](https://github.com/mfschubert/jeig/blob/main/docs/speed.png?raw=true)
 
@@ -23,7 +23,7 @@ import jeig
 
 matrix = jax.random.normal(jax.random.PRNGKey(0), (16, 1024, 1024))
 
-%timeit jax.block_until_ready(jeig.eig(matrix, backend="jax"))
+%timeit jax.block_until_ready(jeig.eig(matrix, backend="lapack"))
 
 %timeit jax.block_until_ready(jeig.eig(matrix, backend="magma"))
 
