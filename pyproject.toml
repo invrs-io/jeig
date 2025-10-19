@@ -19,6 +19,7 @@ dependencies = [
     "jax>=0.4.36",
     "jaxlib",
     "numpy",
+    "packaging",
     "scipy",
     "torch",
 ]
