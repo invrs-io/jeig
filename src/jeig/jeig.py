@@ -35,7 +35,7 @@ _SUPPORTS_IMPLEMENTATION = version.parse(jax.__version__) >= version.parse("0.8.
 _SUPPORTS_CUSOLVER = _SUPPORTS_IMPLEMENTATION and jax.devices()[0].platform == "gpu"
 
 # Identify whether the magma backend is available.
-_SUPPORTS_MAGMA = torch.cuda.has_magma
+_SUPPORTS_MAGMA = torch.cuda.has_magma and jax.devices()[0].platform == "gpu"
 
 
 callback = functools.partial(jax.pure_callback, vmap_method="expand_dims")
