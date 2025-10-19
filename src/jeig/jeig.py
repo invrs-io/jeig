@@ -31,7 +31,7 @@ if torch.cuda.has_magma:
 
 # Versions of jax newer than `0.8.0` have an `jax.lax.linalg.eig` function with an
 # `implementation` argument, and support eigendecomposition via cusolver.
-_SUPPORTS_IMPLEMENTATION = version.parse(jax.__version__) >= version.parse("0.8.0")_
+_SUPPORTS_IMPLEMENTATION = version.parse(jax.__version__) >= version.parse("0.8.0")
 
 # Versions of jax newer than `0.8.0` have an `jax.lax.linalg.eig` function with an
 # `implementation` argument, and support eigendecomposition via cusolver.
