@@ -31,7 +31,11 @@ if torch.cuda.has_magma:
 
 # Versions of jax newer than `0.8.0` have an `jax.lax.linalg.eig` function with an
 # `implementation` argument, and support eigendecomposition via cusolver.
-_SUPPORTS_CUSOLVER = version.parse(jax.__version__) >= version.parse("0.8.0")
+_SUPPORTS_IMPLEMENTATION = version.parse(jax.__version__) >= version.parse("0.8.0")_
+
+# Versions of jax newer than `0.8.0` have an `jax.lax.linalg.eig` function with an
+# `implementation` argument, and support eigendecomposition via cusolver.
+_SUPPORTS_CUSOLVER = _SUPPORTS_IMPLEMENTATION and jax.devices()[0].platform == "gpu"
 
 # Identify whether the magma backend is available.
 _SUPPORTS_MAGMA = torch.cuda.has_magma
@@ -136,7 +140,7 @@ def _eig_lapack(
         matrix_dtype = matrix.dtype
     output_dtype = jnp.promote_types(matrix, jnp.complex64)
 
-    if _SUPPORTS_CUSOLVER:
+    if _SUPPORTS_IMPLEMENTATION:
         eig_fn = functools.partial(
             jax.lax.linalg.eig,
             compute_left_eigenvectors=False,
@@ -166,7 +170,7 @@ def _eig_magma(matrix: jnp.ndarray, force_x64: bool) -> Tuple[jnp.ndarray, jnp.n
     output_dtype = jnp.promote_types(matrix, jnp.complex64)
 
     eig_fn = functools.partial(jax.lax.linalg.eig, compute_left_eigenvectors=False)
-    if _SUPPORTS_CUSOLVER:
+    if _SUPPORTS_IMPLEMENTATION:
         eig_fn = functools.partial(
             jax.lax.linalg.eig,
             compute_left_eigenvectors=False,

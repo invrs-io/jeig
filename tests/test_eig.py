@@ -25,7 +25,7 @@ BACKENDS = [
 ]
 
 # Only test the cusolver backend if supported by the installed jax version.
-if _jeig._SUPPORTS_CUSOLVER:
+if _jeig._SUPPORTS_CUSOLVER and jax.devices()[0].platform == "gpu":
     BACKENDS.append(jeig.EigBackend.CUSOLVER)
 
 # Only test the magma backend if supported by the installed jax and torch versions.
