@@ -1,4 +1,7 @@
-"""Tests for jax-wrapped eigendecomposition."""
+"""Tests for jax-wrapped eigendecomposition.
+
+Copyright (c) 2025 invrs.io LLC
+"""
 
 import itertools
 import unittest
@@ -20,13 +23,14 @@ BACKENDS = [
     jeig.EigBackend.SCIPY,
     jeig.EigBackend.TORCH,
 ]
-# Only test the magma backend if supported by the installed jax and torch versions.
-if _jeig._JAX_HAS_MAGMA:
-    BACKENDS.append(jeig.EigBackend.MAGMA)
 
 # Only test the cusolver backend if supported by the installed jax version.
-if _jeig._JAX_HAS_CUSOLVER:
+if _jeig._SUPPORTS_CUSOLVER:
     BACKENDS.append(jeig.EigBackend.CUSOLVER)
+
+# Only test the magma backend if supported by the installed jax and torch versions.
+if _jeig._SUPPORTS_MAGMA:
+    BACKENDS.append(jeig.EigBackend.MAGMA)
 
 
 SHAPES = [(1, 2, 2), (1, 16, 16), (2, 16, 16), (2, 64, 64)]
