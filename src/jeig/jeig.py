@@ -1,10 +1,14 @@
-"""Various implementations of `eig` wrapped for use with jax."""
+"""Various implementations of `eig` wrapped for use with jax.
+
+Copyright (c) 2025 invrs.io LLC
+"""
 
 import enum
 import functools
 import multiprocessing as mp
 import os
 import warnings
+from packaging import version
 from typing import Any, List, Optional, Tuple
 
 import jax
@@ -25,9 +29,13 @@ if torch.cuda.has_magma:
         os.path.dirname(torch.__file__), "lib", "libtorch_cuda_linalg.so"
     )
 
-# Identify whether MAGMA and CUSOLVER backends are available.
-_JAX_HAS_MAGMA = torch.cuda.has_magma
-_JAX_HAS_CUSOLVER = hasattr(jax.lax.linalg, "EigImplementation")
+# Versions of jax newer than `0.8.0` have an `jax.lax.linalg.eig` function with an
+# `implementation` argument, and support eigendecomposition via cusolver.
+_SUPPORTS_CUSOLVER = version.parse(jax.__version__) >= version.parse("0.8.0")
+
+# Identify whether the magma backend is available.
+_SUPPORTS_MAGMA = torch.cuda.has_magma
+
 
 callback = functools.partial(jax.pure_callback, vmap_method="expand_dims")
 callback_sequential = functools.partial(jax.pure_callback, vmap_method="sequential")
@@ -102,8 +110,8 @@ def _eig_cusolver(
     matrix: jnp.ndarray, force_x64: bool
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Eigendecomposition using `jax.lax.linalg.eig` with `cusolver` backend."""
-    if not _JAX_HAS_CUSOLVER:
-        raise ValueError("`CUSOLVER` backend is not available.")
+    if not _SUPPORTS_CUSOLVER:
+        raise RuntimeError("`CUSOLVER` backend is not available.")
     if force_x64:
         matrix_dtype = jnp.promote_types(matrix.dtype, jnp.float64)
     else:
@@ -113,7 +121,7 @@ def _eig_cusolver(
     eigval, eigvec = jax.lax.linalg.eig(
         matrix.astype(matrix_dtype),
         compute_left_eigenvectors=False,
-        implementation="cusolver",  # type: ignore[call-arg]
+        implementation=jax.lax.linalg.EigImplementation.CUSOLVER,
     )
     return eigval.astype(output_dtype), eigvec.astype(output_dtype)
 
@@ -128,11 +136,18 @@ def _eig_lapack(
         matrix_dtype = matrix.dtype
     output_dtype = jnp.promote_types(matrix, jnp.complex64)
 
-    eig_fn = functools.partial(jax.lax.linalg.eig, compute_left_eigenvectors=False)
-    if _JAX_HAS_CUSOLVER:
-        eig_fn = functools.partial(eig_fn, implementation="lapack")
+    if _SUPPORTS_CUSOLVER:
+        eig_fn = functools.partial(
+            jax.lax.linalg.eig,
+            compute_left_eigenvectors=False,
+            implementation=jax.lax.linalg.EigImplementation.LAPACK,
+        )
     else:
-        eig_fn = functools.partial(eig_fn, use_magma=False)
+        eig_fn = functools.partial(
+            jax.lax.linalg.eig,
+            compute_left_eigenvectors=False,
+            use_magma=False,
+        )
 
     eigval, eigvec = eig_fn(matrix.astype(matrix_dtype))
     return eigval.astype(output_dtype), eigvec.astype(output_dtype)
@@ -140,8 +155,8 @@ def _eig_lapack(
 
 def _eig_magma(matrix: jnp.ndarray, force_x64: bool) -> Tuple[jnp.ndarray, jnp.ndarray]:
     """Eigendecomposition using `jax.lax.linalg.eig` with `magma` backend."""
-    if not _JAX_HAS_MAGMA:
-        raise ValueError(
+    if not _SUPPORTS_MAGMA:
+        raise RuntimeError(
             "`MAGMA` backend is not available; `torch.cuda.has_magma` is `False`."
         )
     if force_x64:
@@ -151,10 +166,18 @@ def _eig_magma(matrix: jnp.ndarray, force_x64: bool) -> Tuple[jnp.ndarray, jnp.n
     output_dtype = jnp.promote_types(matrix, jnp.complex64)
 
     eig_fn = functools.partial(jax.lax.linalg.eig, compute_left_eigenvectors=False)
-    if _JAX_HAS_CUSOLVER:
-        eig_fn = functools.partial(eig_fn, implementation="magma")
+    if _SUPPORTS_CUSOLVER:
+        eig_fn = functools.partial(
+            jax.lax.linalg.eig,
+            compute_left_eigenvectors=False,
+            implementation=jax.lax.linalg.EigImplementation.MAGMA,
+        )
     else:
-        eig_fn = functools.partial(eig_fn, use_magma=True)
+        eig_fn = functools.partial(
+            jax.lax.linalg.eig,
+            compute_left_eigenvectors=False,
+            use_magma=True,
+        )
 
     eigval, eigvec = eig_fn(matrix.astype(matrix_dtype))
     return eigval.astype(output_dtype), eigvec.astype(output_dtype)
