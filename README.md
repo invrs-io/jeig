@@ -4,7 +4,7 @@
 
 ## Overview
 
-This package wraps eigendecompositions as provided by jax, cusolver, magma, numpy, scipy, and torch for use with jax. Depending upon your system and your versions of these packages, you may observe significant speed differences. The following were obtained using jax 0.4.37 on a system with 28-core Intel Xeon w7-3465X and NVIDIA RTX4090.
+This package wraps eigendecompositions as provided by jax, cusolver, magma, numpy, scipy, and torch for use with jax. Depending upon your system and your versions of these packages, you may observe significant speed differences. The following were obtained using jax 0.8.0 on a system with 28-core Intel Xeon w7-3465X and NVIDIA RTX4090.
 
 ![Speed comparison](https://github.com/mfschubert/jeig/blob/main/docs/speed.png?raw=true)
 
@@ -21,24 +21,35 @@ This will also install torch. If you only need torch for use with jeig, then the
 import jax
 import jeig
 
-matrix = jax.random.normal(jax.random.PRNGKey(0), (16, 1024, 1024))
+matrix = jax.random.normal(jax.random.PRNGKey(0), (1, 2048, 2048)).astype(complex)
 
+%timeit jax.block_until_ready(jeig.eig(matrix, backend="cusolver"))
 %timeit jax.block_until_ready(jeig.eig(matrix, backend="lapack"))
-
 %timeit jax.block_until_ready(jeig.eig(matrix, backend="magma"))
-
-%timeit jax.block_until_ready(jeig.eig(matrix, backend="numpy"))
-
-%timeit jax.block_until_ready(jeig.eig(matrix, backend="scipy"))
-
 %timeit jax.block_until_ready(jeig.eig(matrix, backend="torch"))
 ```
 ```
-6.81 s ± 54.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-1min 15s ± 1.35 s per loop (mean ± std. dev. of 7 runs, 1 loop each)
-28.6 s ± 341 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-14.8 s ± 396 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-1.43 s ± 77.7 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+1.31 s ± 43 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+5.44 s ± 379 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+11.1 s ± 937 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+4.93 s ± 92.1 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+```
+
+The default torch backend has good performance when performing batched eigendecomposition on many-core CPUs.
+
+```python
+matrix = jax.random.normal(jax.random.PRNGKey(0), (8, 2048, 2048)).astype(complex)
+
+%timeit jax.block_until_ready(jeig.eig(matrix, backend="cusolver"))
+%timeit jax.block_until_ready(jeig.eig(matrix, backend="lapack"))
+%timeit jax.block_until_ready(jeig.eig(matrix, backend="magma"))
+%timeit jax.block_until_ready(jeig.eig(matrix, backend="torch"))
+```
+```
+10.4 s ± 116 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+48.1 s ± 6.74 s per loop (mean ± std. dev. of 7 runs, 1 loop each)
+1min 33s ± 1.49 s per loop (mean ± std. dev. of 7 runs, 1 loop each)
+7.18 s ± 91.6 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 ```
 
 ## Credit
