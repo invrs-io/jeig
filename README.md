@@ -1,12 +1,12 @@
 # jeig - Eigendecompositions wrapped for jax
-[![Continuous integration](https://github.com/mfschubert/jeig/actions/workflows/build-ci.yml/badge.svg)](https://github.com/mfschubert/jeig/actions)
+[![Continuous integration](https://github.com/invrs-io/jeig/actions/workflows/build-ci.yml/badge.svg)](https://github.com/invrs-io/jeig/actions)
 [![PyPI version](https://img.shields.io/pypi/v/jeig)](https://pypi.org/project/jeig/)
 
 ## Overview
 
 This package wraps eigendecompositions as provided by jax, cusolver, magma, numpy, scipy, and torch for use with jax. Depending upon your system and your versions of these packages, you may observe significant speed differences. The following were obtained using jax 0.8.0 on a system with 28-core Intel Xeon w7-3465X and NVIDIA RTX4090.
 
-![Speed comparison](https://github.com/mfschubert/jeig/blob/main/docs/speed.png?raw=true)
+![Speed comparison](https://github.com/invrs-io/jeig/blob/main/docs/speed.png?raw=true)
 
 ## Install
 jeig can be installed via pip,

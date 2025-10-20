@@ -6,7 +6,7 @@ description = "Various eigendecomposition implementations wrapped for jax."
 keywords = ["jax", "eigendecomposition", "eig", "torch", "scipy", "numpy"]
 readme = "README.md"
 requires-python = ">=3.7"
-license = {file = "LICENSE"}
+license = "BSD-3-Clause"
 
 authors = [
     {name = "Martin Schubert", email = "mfschubert@gmail.com"},
